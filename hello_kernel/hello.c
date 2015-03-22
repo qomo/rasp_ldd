@@ -2,7 +2,7 @@
 #include <linux/kernel.h>
 int hello_init(void)
 {
-	printk(KERN_ALERT "hello world!");
+	printk(KERN_ALERT "hello world!\n");
 	return 0;
 }
 

@@ -1,0 +1,1 @@
+cmd_/home/pi/rasp_ldd/hello_kernel/hello.ko := ld -EL -r  -T /usr/src/linux-headers-3.18.0-trunk-common/scripts/module-common.lds --build-id  -o /home/pi/rasp_ldd/hello_kernel/hello.ko /home/pi/rasp_ldd/hello_kernel/hello.o /home/pi/rasp_ldd/hello_kernel/hello.mod.o
