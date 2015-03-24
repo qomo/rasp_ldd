@@ -102,6 +102,12 @@ exit_rpi:
 
 void hello_exit(void)
 {
+    // release mapped memory allocated region.
+    if(gpio != NULL){
+        iounmap(gpio);
+        release_mem_region(GPIO_BASE, SZ_4K);
+        printk(LED_DRIVER_NAME ": cleaned up resources\n");
+    }
     del_timer(&led_timer);
 	printk(KERN_ALERT "goodbye world!\n");
 }
