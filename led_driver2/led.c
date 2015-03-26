@@ -9,6 +9,7 @@
 #include <linux/ioport.h>
 #include <linux/io.h>
 #include <asm/uaccess.h>
+#include <linux/proc_fs.h>
 
 // include RPi harware specific constants
 // GPIO_BASE SZ_4K
@@ -81,6 +82,102 @@ void led_timer_fun(unsigned long ptr)
 }
 
 
+// 在同步状态下读取寄存器的值
+static ssize_t led_get_val(struct led_dev* dev, char* buf)
+{
+    int val = 0;
+
+    if(mutex_lock_interruptible(&(dev->mutex)))
+        return -ERESTARTSYS;
+
+    val = dev->blink_freq;
+    mutex_unlock(&(dev->mutex));
+
+    return snprintf(buf, 30, "%d\n", val);
+}
+
+// 在同步状态下设置寄存器的值
+static ssize_t led_set_val(struct led_dev* dev, const char* buf, size_t count)
+{
+    int val = 0;
+
+    val = (int)simple_strtol(buf, NULL, 10);
+
+    if(mutex_lock_interruptible(&(dev->mutex)))
+        return -ERESTARTSYS;
+
+    dev->blink_freq = val;
+    mutex_unlock(&(dev->mutex));
+
+    return count;
+}
+
+// /proc 节点的写操作
+ssize_t led_proc_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_ops)
+{
+    int err = 0;
+    char* page = NULL;
+
+    if(count > PAGE_SIZE)
+    {
+        printk(KERN_ALERT "The buff is too large: %lu.\n", (unsigned long)count);
+        return -EFAULT;
+    }
+
+    page = (char*)__get_free_page(GFP_KERNEL);
+    if(!page)
+    {
+        printk(KERN_ALERT "Failed to alloc page.\n");
+        return -ENOMEM;
+    }
+
+    if(copy_from_user(page, buf, count))
+    {
+        printk(KERN_ALERT "Failed to copy buff from user.\n");
+        err = -EFAULT;
+        goto out;
+    }
+
+    err = led_set_val(led_devices, page, count);
+
+out:
+    free_page((unsigned long)page);
+    return err;
+}
+
+// /proc 节点读操作
+// ssize_t led_proc_read(struct file *filp, char __user *buf, size_t count, loff_t *off)
+// {
+//     if(off > 0)
+//     {
+//         // *eof = 1;
+//         return 0;
+//     }
+
+//     return led_get_val(led_devices, buf);
+// }
+
+// 创建／proc节点
+static void led_create_proc(void)
+{
+    struct proc_dir_entry* entry;
+
+    // entry = proc_create(LED_DRIVER_NAME, 0, NULL);
+    // if(entry)
+    // {
+    //     // entry->owner = THIS_MODULE;
+    //     entry->read_proc = led_proc_read;
+    //     entry->write_proc = led_proc_write;
+    // }
+}
+
+// 删除／proc节点
+static void led_remove_proc(void)
+{
+    remove_proc_entry(LED_DRIVER_NAME, NULL);
+}
+
+
 int led_open(struct inode *inode, struct file *filp)
 {
     struct led_dev *dev;    //device information
@@ -100,34 +197,23 @@ ssize_t led_read(struct file *filp, char __user *buf, size_t count, loff_t *f_op
 {
     ssize_t ret = 0;
     struct led_dev *dev = filp->private_data;
+    unsigned char buf_tmp[30];
 
     if(mutex_lock_interruptible(&dev->mutex))
         return -ERESTARTSYS;
 
-    if(count < sizeof(dev->blink_freq))
+    snprintf(buf_tmp, 30, "%d\n", dev->blink_freq);
+
+    if(count < sizeof(buf_tmp))
         goto out;
 
-    if(copy_to_user(buf, &(dev->blink_freq), sizeof(dev->blink_freq)))
+    if(copy_to_user(buf, &buf_tmp, sizeof(dev->blink_freq)))
     {
         ret = -EFAULT;
         goto out;
     }
 
-    ret = sizeof(dev->blink_freq);
-
-    // if (p >= MEM_SIZE)
-    //     return intcount ? - ENXIO: 0;
-    // if (intcount > MEM_SIZE - p)
-    //     intcount = MEM_SIZE - p;
-
-    // if (copy_to_user(buf, (void*)(dev->blink_freq), intcount))
-    //     ret = -EFAULT;
-    // else
-    // {
-    //     ret = MEM_SIZE;
-    //     printk(KERN_INFO "read %d bytes(s) from %d\n", MEM_SIZE, (unsigned long)f_ops);
-    // }
-
+    ret = sizeof(buf_tmp);
 
 out:
     mutex_unlock(&(dev->mutex));
@@ -153,20 +239,6 @@ ssize_t led_write(struct file *filp, const char __user *buf, size_t count, loff_
 
     ret = sizeof(dev->blink_freq);
 
-    // if (p >= MEM_SIZE)  //要写的偏移量越界
-    //     return intcount ? - ENXIO: 0;
-    // if (intcount > MEM_SIZE - p)    //要写的字节数太多
-    //     intcount = MEM_SIZE - p;
-
-    // if (copy_from_user(dev->blink_freq, buf, intcount))
-    //     ret = -EFAULT;
-    // else
-    // {
-    //     ret = MEM_SIZE;
-    //     printk(KERN_INFO "writen %d bytes(s) from %d\n", MEM_SIZE, (unsigned long)f_ops);
-    //     printk(KERN_INFO "led_devices->blink_freq = %s\n", dev->blink_freq);
-    // }
-
 out:
     mutex_unlock(&(dev->mutex));
     return ret;
@@ -175,7 +247,7 @@ out:
 struct file_operations led_fops = {
     .owner = THIS_MODULE,
     .read = led_read,
-    .write = led_write,
+    .write = led_proc_write,
     .open = led_open,
     .release = led_release,
 };
@@ -204,6 +276,8 @@ void led_exit(void)
         printk(LED_DRIVER_NAME ": cleaned up resources\n");
     }
     del_timer(&led_timer);
+
+    led_remove_proc();
 
     if(led_devices){
         kfree(led_devices);
@@ -248,6 +322,12 @@ static int led_init(void)
 
     mutex_init(&(led_devices->mutex));
     led_dev_setup_cdev(led_devices, 0);
+
+    // 将led_dev保存在设备私有数据区
+    // dev_set_drvdata(led_devices, led_dev);
+
+    // 创建proc节点
+    led_create_proc();
 
 
     init_port();
