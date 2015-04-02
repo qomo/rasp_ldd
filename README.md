@@ -52,3 +52,22 @@
 `echo 10 > /dev/led`
 
 传入频率参数了
+
+
+## led_driver3
+做了一个很简单的事情，就是增加一个／proc文件接口，用以控制led闪烁频率
+
+led_entry 是`proc_dir_entry`类型指针
+struct proc_dir_entry *entry;
+
+添加proc文件接口的函数是
+
+`led_entry = proc_create("led_freq", 0, NULL, &led_fops)`
+
+删除proc文件接口的函数是
+
+`remove_proc_entry("led_freq", NULL)`
+
+参考：
+- 《LDD3》第四章
+- https://www.linux.com/learn/linux-training/37985-the-kernel-newbie-corner-kernel-debugging-using-proc-qsequenceq-files-part-1
