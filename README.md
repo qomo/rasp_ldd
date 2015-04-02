@@ -1,5 +1,8 @@
 # rasp_ldd
 
+你还可以参考我学习《LDD3》时建立的另一个杂七杂八的项目：
+> https://github.com/qomo/LDD_learning
+
 ## 环境配置
 基金会网站下载的镜像不带有内核头文件
 
