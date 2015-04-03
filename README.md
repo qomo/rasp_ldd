@@ -74,3 +74,23 @@ struct proc_dir_entry *entry;
 参考：
 - 《LDD3》第四章
 - https://www.linux.com/learn/linux-training/37985-the-kernel-newbie-corner-kernel-debugging-using-proc-qsequenceq-files-part-1
+
+## led_driver4
+自动添加dev文件
+
+首先，要创建一个class
+
+`class_create()`
+
+然后，在这个class下创建device
+
+`device_create()`
+
+它们的注销函数分别是
+
+`class_destroy`和`device_destroy()`
+
+参考：
+- 《LDD3》第十四章——Linux设备模型
+- http://www.fsl.cs.sunysb.edu/kernel-api/re814.html
+- https://www.kernel.org/doc/htmldocs/device-drivers/API-device-create.html
