@@ -94,3 +94,16 @@ struct proc_dir_entry *entry;
 - 《LDD3》第十四章——Linux设备模型
 - http://www.fsl.cs.sunysb.edu/kernel-api/re814.html
 - https://www.kernel.org/doc/htmldocs/device-drivers/API-device-create.html
+
+
+## raspi_gpio
+这是一个通用的GPIO驱动程序，它具有功能：
+- 通用GPIO输出
+- 通用GPIO输入
+- 通用GPIO中断，有上升沿中断和下降沿中断
+
+驱动程序源于一个PDF文档——“Implementation of Linux GPIO Device Driver on Raspberry Pi Platform”(是一篇芬兰的学士学位论文)
+> http://www.theseus.fi/bitstream/handle/10024/74679/Nguyen_Vu.pdf?sequence=1
+
+论文中对GPIO的控制和之前的几个例子不太一样，并没有直接操作虚拟内存。而是采用了gpio.h头文件提供的方法。可以参考：
+> https://www.kernel.org/doc/Documentation/gpio/gpio-legacy.txt
