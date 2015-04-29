@@ -209,7 +209,7 @@ static int setup_interrupts(void)
 static int init_port(void)
 {
 	// reserve GPIO memory region. 
-	if (request_mem_region(GPIO_BASE, SZ_4K, DHT11_DRIVER_NAME) == NULL) {
+	if (request_mem_region(GPIO_BASE, SZ_4K, DHT11_DRIVER_NAME)) {
 		printk(KERN_ERR DHT11_DRIVER_NAME ": unable to obtain GPIO I/O memory address\n");
 		return -EBUSY;
 	}

@@ -79,4 +79,6 @@ struct proc_dir_entry *entry;
 论文中对GPIO的控制和之前的几个例子不太一样，并没有直接操作虚拟内存。而是采用了gpio.h头文件提供的方法。可以参考：  
 > https://www.kernel.org/doc/Documentation/gpio/gpio-legacy.txt
 
-##
+## dht11
+这是dht11温湿度传感器驱动程序，参考了以下文档和其对应的源码文件dht11km：
+> http://www.slideshare.net/raspberrypi-tw/write-adevicedriveronraspberrypihowto  
