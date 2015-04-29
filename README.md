@@ -16,7 +16,8 @@
 ## led_driver
 **参考：**  
 > http://www.slideshare.net/raspberrypi-tw/write-adevicedriveronraspberrypihowto  
-> https://www.youtube.com/watch?v=RlNPtBEZRkY  
+> https://www.youtube.com/watch?v=RlNPtBEZRkY
+
 这是一个最基本的LED驱动程序，让LED闪烁  
 第一个链接是一个关于树莓派驱动程序的PPT，它里面的例子是一个温湿度传感器的驱动，告诉我准确的控制GPIO的方法  
 第二个链接是YouTube上关于树莓派LED驱动的视频，按照视频里的方法控制GPIO会导致问题，但它提供了这个驱动程序的结构。
@@ -31,10 +32,13 @@
 暂且先增加一个字符设备驱动程序，它的功能很简单，就是通过设备节点传入一个闪烁频率的参数，用于控制LED灯的闪烁频率。  
 如何通过设备节点传入一个整数？  
 参考了一个带有整数属性的Android字符设备驱动程序：  
-> http://blog.csdn.net/liuhaoyutz/article/details/8500300  
+> http://blog.csdn.net/liuhaoyutz/article/details/8500300
+
 还有一些关于字符设备驱动程序的基础知识,  
 可以参考《Linux设备驱动程序》一书和我学习这本书的记录：  
+
 > https://github.com/qomo/LDD_learning  
+
 使用这个例子，需要自行在/dev/目录下创建设备文件:  
 `mknod /dev/led c 245 0`  
 然后就可以通过  
@@ -76,6 +80,7 @@ struct proc_dir_entry *entry;
 
 驱动程序源于一个PDF文档——“Implementation of Linux GPIO Device Driver on Raspberry Pi Platform”(是一篇芬兰的学士学位论文)  
 > http://www.theseus.fi/bitstream/handle/10024/74679/Nguyen_Vu.pdf?sequence=1
+
 论文中对GPIO的控制和之前的几个例子不太一样，并没有直接操作虚拟内存。而是采用了gpio.h头文件提供的方法。可以参考：  
 > https://www.kernel.org/doc/Documentation/gpio/gpio-legacy.txt
 
