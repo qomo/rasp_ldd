@@ -25,6 +25,9 @@
 #include <asm/io.h>
 #include <linux/ioport.h>
 #include <linux/proc_fs.h>
+#include <linux/spinlock.h>
+
+#include <asm/uaccess.h>		// for put_user
 
 // include RPI hardware specific constants
 #include <mach/hardware.h>
@@ -50,6 +53,15 @@ static void clear_interrupts(void);
 
 
 // Global variables are declared as static, so are global within the file.
+static int Device_Open = 0;	// Is device open? Used to prevent multiple access to device
+static char msg[BUF_LEN];	// The msg the device will give when asked 
+static char *msg_Ptr;	
+static spinlock_t lock;
+static unsigned int bitcount = 0;
+static unsigned int bytecount = 0;
+static unsigned int started = 0;		//Indicate if we have started a read or not
+static unsigned char dht[5];			// For result bytes
+static int format = 0;					// Default result format
 static int gpio_pin = 0; 	//Default GPIO pin
 
 // 定义设备模型
@@ -65,6 +77,7 @@ struct proc_dir_entry *entry;
 
 //Operations that can be performed on the device
 static struct file_operations fops = {
+	.owner = THIS_MODULE,
 	.read = device_read,
 	.open = read_dht11,
 	.release = close_dht11
@@ -94,7 +107,7 @@ static int init_port(void)
 }
 
 
-int dht11_init(void)
+static int __init dht11_init(void)
 {
 	int result;
 	int i; 
@@ -135,7 +148,7 @@ exit_rpi:
 	return result;
 }
 
-void dht11_exit(void)
+static void __exit dht11_exit(void)
 {
 	// release mapped memory and allocated region
 	if (gpio != NULL) {
@@ -155,22 +168,100 @@ void dht11_exit(void)
 // Called when a process wants to read the dht11 "cat /dev/dht11"
 static int read_dht11(struct inode *inode, struct file *file)
 {
-	printk(KERN_INFO DHT11_DRIVER_NAME ": Call read_dht11()");
+	char result[3]; 			// To say if the result is trustworthy or not
+	int retry = 0;
+
+	if (Device_Open)
+		return -EBUSY;
+
+	// try_module_get(THIS_MODULE); 		// Increase use count (看起来这是个不用了的功能：http://stackoverflow.com/questions/1741415/linux-kernel-modules-when-to-use-try-module-get-module-put)
+
+	Device_Open++;
+
+	// Take data low for min 18mS to start up DHT11
+	printk(KERN_INFO DHT11_DRIVER_NAME " Start setup (read_dht11)\n");
+
+start_read:
+	started = 0;
+	bitcount = 0;
+	bytecount = 0;
+	dht[0] = 0;
+	dht[1] = 0;
+	dht[2] = 0;
+	dht[3] = 0;
+	dht[4] = 0;
+
+	// Check if the read results are valid. If not then try again!
+	if (1)
+		sprintf(result, "OK");
+	else {
+		retry++;
+		sprintf(result, "BAD");
+		if(retry == 5)
+			goto return_result;
+		goto start_read;
+	}
+
+	// Return the result in various different formats
+return_result:
+	switch(format){
+		case 0:
+			sprintf(msg, "Values: %d, %d, %d, %d, %d, %s\n", dht[0], dht[1], dht[2], dht[3], dht[4], result);
+			break;
+		case 1:
+			sprintf(msg, "%0X,%0X,%0X,%0X,%0X,%s\n", dht[0], dht[1], dht[2], dht[3], dht[4], result);
+			break;
+		case 2:
+			sprintf(msg, "%02X%02X%02X%02X%02X%s\n", dht[0], dht[1], dht[2], dht[3], dht[4], result);
+			break;
+		case 3:
+			sprintf(msg, "Temperature: %dC\nHumidity: %d%%\nResult:%s\n", dht[0], dht[2], result);
+			break;
+	}
+	msg_Ptr = msg;
+
+	return SUCCESS;
 }
 
 // Called when a process closes the device file.
 static int close_dht11(struct inode *inode, struct file *file)
 {
-	printk(KERN_INFO DHT11_DRIVER_NAME ": Call close_dht11()");
+	// Decrement the usage count, or else once you opened the file, you'll never get get rid of the module.
+	// module_put(THIS_MODULE);
+	Device_Open--;
+
+
+	printk(KERN_INFO DHT11_DRIVER_NAME ": Device release(close_dht11)\n");
+
+	return 0;
 }
 
 // Called when a process, which already opened the dev file, attempts to read from it.
 static ssize_t device_read(struct file *filp,	// see include/linux/fs.h
 							char *buffer,		// buffer to fill with data
-							size_t lenght,		// length of the buffer
+							size_t lenght,		// lenght of the buffer
 							loff_t * offset)
 {
+	// Number of bytes actually written to the buffer
+	int bytes_read = 0;
+
+	// If we're at the end of the message, return 0 signifying end of file
+	if (*msg_Ptr == 0)
+		return 0;
+
+	// Actually put the data into the buffer
+	while(lenght && *msg_Ptr) {
+		// The buffer is in the user data segment, not the kernel segment so "*" assignment won't work. We have to use
+		// put_user which copies data from the kernel datasegment to the user data segment.
+		put_user(*(msg_Ptr++), buffer++);
+
+		lenght--;
+		bytes_read++;
+	}
 	printk(KERN_INFO DHT11_DRIVER_NAME ": Call device_read()");
+
+	// Return the number of bytes put into the buffer
+	return bytes_read;
 }
 MODULE_DESCRIPTION("DHT11 temperature/humidity sensor driver for Raspberry Pi GPIO");
 MODULE_LICENSE("GPL");
