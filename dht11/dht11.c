@@ -306,6 +306,8 @@ start_read:
 	dht[4] = 0;
 
 	GPIO_DIR_OUTPUT(gpio_pin); 			// Set pin to output
+	GPIO_SET_PIN(gpio_pin);				// Take pin high
+	mdelay(250);
 	GPIO_CLEAR_PIN(gpio_pin);			// Set low
 	mdelay(20);							// DHT11 needs min 18mS to signal a startup
 	GPIO_SET_PIN(gpio_pin);				// Take pin high
@@ -323,7 +325,7 @@ start_read:
 	mdelay(10);
 
 
-	printk(KERN_INFO DHT11_DRIVER_NAME "Result: %d, %d, %d, %d,%d\n", dht[0], dht[1], dht[2], dht[3], dht[4], dht[5]);
+	// printk(KERN_INFO DHT11_DRIVER_NAME "Result: %d, %d, %d, %d,%d\n", dht[0], dht[1], dht[2], dht[3], dht[4], dht[5]);
 	// Check if the read results are valid. If not then try again!
 	if ((dht[0] + dht[1] + dht[2] + dht[3] == dht[4]) & (dht[4] > 0))
 		sprintf(result, "OK");

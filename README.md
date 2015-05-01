@@ -87,3 +87,13 @@ struct proc_dir_entry *entry;
 ## dht11
 这是dht11温湿度传感器驱动程序，参考了以下文档和其对应的源码文件dht11km：
 > http://www.slideshare.net/raspberrypi-tw/write-adevicedriveronraspberrypihowto  
+
+不过这份源码文件存在以下bug：
+- `try_module_get()`和`module_put()`应该是已经被废弃的函数，参见：http://stackoverflow.com/questions/1741415/linux-kernel-modules-when-to-use-try-module-get-module-put
+- DHT时序开始之前，需要加入250 ms的高电平。（这是通过阅读aruidno中DHT库函数发现的，这个库函数作为附件放在/dht11/attachment/DHT中）
+- 申请中断的`request_irq()`的第一个参数*INTERRUPT*改为*raspi_gpio*例子中的方式获取
+- 申请字符设备的`register_chrdev()`也改为动态获取字符设备`alloc_chrdev_region()`
+- 自己添加了proc/dht11文件接口用于用户交互
+
+最后，个人觉得Arduino中的DHT库函数可能是个dht11驱动更优雅的实现，之后也许可以将它迁移到树莓派里
+
