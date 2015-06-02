@@ -86,6 +86,9 @@ static unsigned char dht[5];			// For result bytes
 static int format = 0;					// Default result format
 static int gpio_pin = 22; 	//Default GPIO pin
 
+module_param(format, int, S_IRUGO);
+module_param(gpio_pin, int, S_IRUGO);
+
 // 定义设备模型
 // struct dht11_dev {
 // 	struct cdev cdev;
